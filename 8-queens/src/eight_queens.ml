@@ -127,66 +127,47 @@ let print_board_diagnostics board directions =
     fun yi row ->
       Array.iteri
       (
-        fun xi square ->
-          match square with
-          | Queen ->
+        fun xi square -> match square with
+        | Queen ->
+          printf "(X: %d, Y: %d, STATE: %c)\n" xi yi (char_of_state square);
+          List.iter
+          (
+            fun dir ->
+              let offsets = offsets_of_dir dir in
+              let view = view_in_dir xi yi dir in
+              let view_weights =
+                List.map (fun (x, y) -> weight_of_state board.(y).(x)) view
+              in
 
-            printf "(X: %d, Y: %d, STATE: %c)\n" xi yi (char_of_state square);
+              printf "%s-O : " (str_of_dir dir);
+              List.iter (fun (x, y) -> printf "%d,%d " x y) offsets;
+              print_newline ();
 
-            List.iter
-            (
-              fun dir ->
-                let offsets = offsets_of_dir dir in
-                let view = view_in_dir xi yi dir in
-                let view_weights =
-                  List.map (fun (x, y) -> weight_of_state board.(y).(x)) view
-                in
+              printf "%s-C : " (str_of_dir dir);
+              List.iter (fun (x, y) -> printf "%d,%d " x y) view;
+              print_newline ();
 
-                printf "%s-O : " (str_of_dir dir);
-                List.iter
-                (
-                  fun (x, y) ->
-                    printf "%d,%d " x y
-                )
-                offsets;
-                print_newline ();
+              printf "%s-S : " (str_of_dir dir);
+              List.iter
+              (fun (x, y) -> printf " %c  " (char_of_state board.(y).(x)))
+              view;
+              print_newline ();
 
-                printf "%s-C : " (str_of_dir dir);
-                List.iter
-                (
-                  fun (x, y) ->
-                    printf "%d,%d " x y
-                )
-                view;
-                print_newline ();
+              printf "%s-W : " (str_of_dir dir);
+              List.iter
+              (fun (x, y) -> printf " %d  " (weight_of_state board.(y).(x)))
+              view;
+              print_newline ();
 
-                printf "%s-S : " (str_of_dir dir);
-                List.iter
-                (
-                  fun (x, y) ->
-                    printf " %c  " (char_of_state board.(y).(x))
-                )
-                view;
-                print_newline ();
+              printf "%s-WT: " (str_of_dir dir);
+              let view_weight = List.fold_left (+) 0 view_weights in
+              printf " %d" view_weight;
+              print_newline ();
+          )
+          directions;
+          print_newline ();
 
-                printf "%s-W : " (str_of_dir dir);
-                List.iter
-                (
-                  fun (x, y) ->
-                    printf " %d  " (weight_of_state board.(y).(x))
-                )
-                view;
-                print_newline ();
-
-                printf "%s-WT: " (str_of_dir dir);
-                let view_weight = List.fold_left (+) 0 view_weights in
-                printf " %d" view_weight;
-                print_newline ();
-            )
-            directions;
-            print_newline ();
-
-          | Empty -> ()
+        | Empty -> ()
       )
       row;
       print_newline ()
@@ -295,8 +276,10 @@ let board_of_chromosome chromosome =
 
 let main () =
   Random.self_init ();
+
   let population_size = 10 in
   let chromosomes = List.map (new_chromosome) (rep () population_size) in
+
 
   List.iter
   begin
