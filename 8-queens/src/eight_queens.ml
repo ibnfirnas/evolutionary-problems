@@ -318,14 +318,14 @@ let crossover = function
   | _ -> assert false
 
 
-let evolve chromosomes =
-  let num_chromosomes = Array.length chromosomes in
+let rec evolve population =
+  let population_size = Array.length population in
   let num_parent_candidates = 5 in
 
   let parent_candidates =
     Array.make num_parent_candidates ()
-    |> Array.map (fun () -> Random.int num_chromosomes)
-    |> Array.map (fun i  -> chromosomes.(i))
+    |> Array.map (fun () -> Random.int population_size)
+    |> Array.map (fun i  -> population.(i))
   in
 
   (* Lowest weights to the top *)
@@ -336,10 +336,19 @@ let evolve chromosomes =
   let parents = Array.sub parent_candidates 0 2 in
   let children = crossover parents in
 
-  print_chromosomes chromosomes "POPULATION";
+  print_chromosomes population "POPULATION";
   print_chromosomes parent_candidates "CANDIDATES";
   print_chromosomes parents "PARENTS";
-  print_chromosomes children "CHILDREN"
+  print_chromosomes children "CHILDREN";
+
+  (* Mix-in children and remove the fattest members *)
+  let new_population = Array.concat [population; children] in
+  Array.sort
+  (fun a b -> compare (weight_of_chromosome a) (weight_of_chromosome b))
+  new_population;
+  let new_population = Array.sub new_population 0 population_size in
+
+  evolve new_population
 
 
 let main () =
