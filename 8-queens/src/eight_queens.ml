@@ -207,7 +207,7 @@ let print_board_weighted board =
   board
 
 
-let board_weight board =
+let weight_of_board board =
   let board_weighted =
     Array.mapi
     (
@@ -274,26 +274,56 @@ let board_of_chromosome chromosome =
   chromosome
 
 
-let main () =
-  Random.self_init ();
-
-  let population_size = 10 in
-  let chromosomes = List.map (new_chromosome) (rep () population_size) in
+let weight_of_chromosome chromosome =
+  weight_of_board (board_of_chromosome chromosome)
 
 
-  List.iter
+let print_chromosomes chromosomes label =
+  print_endline label;
+  Array.iteri
   begin
-    fun chromosome ->
-      let board = board_of_chromosome chromosome in
-      print_board board;
-      print_newline ();
-      print_board_weighted board;
-      print_endline "===============";
-      printf "BOARD WEIGHT: %d" (board_weight board);
-      print_newline ();
+    fun i c ->
+      printf "%d, " i;
+      Array.iter (print_int) c;
+      printf ", %d" (weight_of_chromosome c);
       print_newline ()
   end
-  chromosomes
+  chromosomes;
+  print_newline ()
+
+
+let evolve chromosomes =
+  let num_chromosomes = Array.length chromosomes in
+  let num_parent_candidates = 5 in
+  let num_parents = 2 in
+
+  let parent_candidates =
+    Array.make num_parent_candidates ()
+    |> Array.map (fun () -> Random.int num_chromosomes)
+    |> Array.map (fun i  -> chromosomes.(i))
+  in
+
+  (* Lowest weights to the top *)
+  Array.sort
+  (fun a b -> compare (weight_of_chromosome a) (weight_of_chromosome b))
+  parent_candidates;
+
+  let parents = Array.sub parent_candidates 0 num_parents in
+
+  print_chromosomes chromosomes "POPULATION";
+  print_chromosomes parent_candidates "CANDIDATES";
+  print_chromosomes parents "PARENTS"
+
+
+let main () =
+  (*Random.self_init ();*)
+
+  let population_size = 10 in
+  let chromosomes =
+    Array.of_list (List.map (new_chromosome) (rep () population_size))
+  in
+
+  evolve chromosomes
 
 
 let () = main ()
