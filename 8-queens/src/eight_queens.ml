@@ -292,10 +292,35 @@ let print_chromosomes chromosomes label =
   print_newline ()
 
 
+let split_parent x p =
+  let len = Array.length p in
+  let head_start = 0 in
+  let head_length = x + 1 in
+  let tail_start = head_length in
+  let tail_length = len - head_length in
+  let head = Array.sub p head_start head_length in
+  let tail = Array.sub p tail_start tail_length in
+  head, tail
+
+
+let crossover = function
+  | [| parent_a; parent_b |] ->
+    let cross_point = Random.int 8 in
+
+    let a_head, a_tail = split_parent cross_point parent_a in
+    let b_head, b_tail = split_parent cross_point parent_b in
+
+    let a_child = Array.concat [a_head; b_tail] in
+    let b_child = Array.concat [b_head; a_tail] in
+
+    [| a_child; b_child |]
+
+  | _ -> assert false
+
+
 let evolve chromosomes =
   let num_chromosomes = Array.length chromosomes in
   let num_parent_candidates = 5 in
-  let num_parents = 2 in
 
   let parent_candidates =
     Array.make num_parent_candidates ()
@@ -308,11 +333,13 @@ let evolve chromosomes =
   (fun a b -> compare (weight_of_chromosome a) (weight_of_chromosome b))
   parent_candidates;
 
-  let parents = Array.sub parent_candidates 0 num_parents in
+  let parents = Array.sub parent_candidates 0 2 in
+  let children = crossover parents in
 
   print_chromosomes chromosomes "POPULATION";
   print_chromosomes parent_candidates "CANDIDATES";
-  print_chromosomes parents "PARENTS"
+  print_chromosomes parents "PARENTS";
+  print_chromosomes children "CHILDREN"
 
 
 let main () =
