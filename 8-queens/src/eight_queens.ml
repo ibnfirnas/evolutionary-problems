@@ -36,7 +36,7 @@ let rep a times =
   rep (times, [])
 
 
-let array_diff (a : 'a array) (b : 'a array) : 'a array =
+let difference (a : 'a array) (b : 'a array) : 'a array =
   a
   |> Array.to_list
   |> List.filter (fun element -> not (List.mem element (Array.to_list b)))
@@ -304,8 +304,8 @@ let crossover = function
     let head_a = Array.sub parent_a 0 cross_point in
     let head_b = Array.sub parent_b 0 cross_point in
 
-    let tail_a = array_diff parent_b head_a in
-    let tail_b = array_diff parent_a head_b in
+    let tail_a = difference parent_b head_a in
+    let tail_b = difference parent_a head_b in
 
     let child_a = Array.concat [head_a; tail_a] in
     let child_b = Array.concat [head_b; tail_b] in
