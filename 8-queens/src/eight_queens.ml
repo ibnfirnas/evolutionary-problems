@@ -43,6 +43,11 @@ let array_diff (a : 'a array) (b : 'a array) : 'a array =
   |> Array.of_list
 
 
+let is_probable = function
+  | probability when (Random.float 1.0) <= probability -> true
+  | _ -> false
+
+
 (* ------------------------------------------------------------------------- *
  * Core
  * ------------------------------------------------------------------------- *)
@@ -299,6 +304,25 @@ let print_chromosomes chromosomes label =
   print_newline ()
 
 
+let mutated chromosome =
+  let chromosome = Array.copy chromosome in
+  let length = Array.length chromosome in
+  let point_a = Random.int length in
+  let point_b = Random.int length in
+  let val_of_a = chromosome.(point_a) in
+  let val_of_b = chromosome.(point_b) in
+  chromosome.(point_a) <- val_of_b;
+  chromosome.(point_b) <- val_of_a;
+  chromosome
+
+
+let maybe_mutate_chromosomes chromosomes =
+  let mutation_rate = 0.8 in
+  Array.map
+  (fun c -> if is_probable mutation_rate then mutated c else c)
+  chromosomes
+
+
 let crossover = function
   | [| parent_a; parent_b |] ->
     let cross_point = Random.int 8 in
@@ -309,10 +333,10 @@ let crossover = function
     let tail_a = array_diff parent_b head_a in
     let tail_b = array_diff parent_a head_b in
 
-    let a_child = Array.concat [head_a; tail_a] in
-    let b_child = Array.concat [head_b; tail_b] in
+    let child_a = Array.concat [head_a; tail_a] in
+    let child_b = Array.concat [head_b; tail_b] in
 
-    [| a_child; b_child |]
+    maybe_mutate_chromosomes [|child_a; child_b|]
 
   | _ -> assert false
 
