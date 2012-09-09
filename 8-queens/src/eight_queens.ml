@@ -36,6 +36,13 @@ let rep a times =
   rep (times, [])
 
 
+let array_diff (a : 'a array) (b : 'a array) : 'a array =
+  a
+  |> Array.to_list
+  |> List.filter (fun element -> not (List.mem element (Array.to_list b)))
+  |> Array.of_list
+
+
 (* ------------------------------------------------------------------------- *
  * Core
  * ------------------------------------------------------------------------- *)
@@ -292,26 +299,18 @@ let print_chromosomes chromosomes label =
   print_newline ()
 
 
-let split_parent x p =
-  let len = Array.length p in
-  let head_start = 0 in
-  let head_length = x + 1 in
-  let tail_start = head_length in
-  let tail_length = len - head_length in
-  let head = Array.sub p head_start head_length in
-  let tail = Array.sub p tail_start tail_length in
-  head, tail
-
-
 let crossover = function
   | [| parent_a; parent_b |] ->
     let cross_point = Random.int 8 in
 
-    let a_head, a_tail = split_parent cross_point parent_a in
-    let b_head, b_tail = split_parent cross_point parent_b in
+    let head_a = Array.sub parent_a 0 cross_point in
+    let head_b = Array.sub parent_b 0 cross_point in
 
-    let a_child = Array.concat [a_head; b_tail] in
-    let b_child = Array.concat [b_head; a_tail] in
+    let tail_a = array_diff parent_b head_a in
+    let tail_b = array_diff parent_a head_b in
+
+    let a_child = Array.concat [head_a; tail_a] in
+    let b_child = Array.concat [head_b; tail_b] in
 
     [| a_child; b_child |]
 
