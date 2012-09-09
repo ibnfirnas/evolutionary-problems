@@ -341,48 +341,50 @@ let crossover = function
   | _ -> assert false
 
 
-let rec evolve population =
-  let population_size = Array.length population in
-  let num_parent_candidates = 5 in
-
-  let parent_candidates =
-    Array.make num_parent_candidates ()
-    |> Array.map (fun () -> Random.int population_size)
-    |> Array.map (fun i  -> population.(i))
-  in
-
-  (* Lowest weights to the top *)
+let sort_population population =
   Array.sort
   (fun a b -> compare (weight_of_chromosome a) (weight_of_chromosome b))
-  parent_candidates;
+  population
 
-  let parents = Array.sub parent_candidates 0 2 in
-  let children = crossover parents in
 
-  print_chromosomes population "POPULATION";
-  print_chromosomes parent_candidates "CANDIDATES";
-  print_chromosomes parents "PARENTS";
-  print_chromosomes children "CHILDREN";
+let rec evolve = function
+  (* Assuming population comes-in sorted by weight, of course... *)
+  | population when (weight_of_chromosome population.(0)) = 0 -> population.(0)
+  | population ->
+    let population_size = Array.length population in
+    let num_parent_candidates = 5 in
 
-  (* Mix-in children and remove the fattest members *)
-  let new_population = Array.concat [population; children] in
-  Array.sort
-  (fun a b -> compare (weight_of_chromosome a) (weight_of_chromosome b))
-  new_population;
-  let new_population = Array.sub new_population 0 population_size in
+    let parent_candidates =
+      Array.make num_parent_candidates ()
+      |> Array.map (fun () -> Random.int population_size)
+      |> Array.map (fun i  -> population.(i))
+    in
+    sort_population parent_candidates;
 
-  evolve new_population
+    let parents = Array.sub parent_candidates 0 2 in
+    let children = crossover parents in
+
+    (* Mix-in children and drop the fattest members *)
+    let new_population = Array.concat [population; children] in
+    sort_population new_population;
+    let new_population = Array.sub new_population 0 population_size in
+
+    evolve new_population
 
 
 let main () =
-  (*Random.self_init ();*)
+  Random.self_init ();
 
   let population_size = 10 in
-  let chromosomes =
+  let population =
     Array.of_list (List.map (new_chromosome) (rep () population_size))
   in
+  sort_population population;
 
-  evolve chromosomes
+  let first_solution = evolve population in
+  let board = board_of_chromosome first_solution in
+
+  print_board board
 
 
 let () = main ()
