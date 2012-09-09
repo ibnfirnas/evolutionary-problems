@@ -238,32 +238,6 @@ let weight_of_board board =
   Array.fold_left (+) 0 weights
 
 
-let init_board () =
-  let board = Array.make_matrix 8 8 Empty
-  and num_queens = 8
-  and dim_queue = [0; 1; 2; 3; 4; 5; 6; 7] in
-
-  (* Using a dimension only once, prevents the possibility of Queens being
-   * placed in direct view, which halves the space we'll need to search, leaving
-   * only the possibility of diagonals. *)
-
-  let rec place_queens = function
-    | 0, _, _ -> ()
-    | num_queens, xq, yq ->
-      let x = List.nth xq (Random.int (List.length xq))
-      and y = List.nth yq (Random.int (List.length yq)) in
-
-      board.(y).(x) <- Queen;
-
-      let new_xq = List.filter ((!=) x) xq
-      and new_yq = List.filter ((!=) y) yq in
-
-      place_queens ((num_queens - 1), new_xq, new_yq)
-  in
-  place_queens (num_queens, dim_queue, dim_queue);
-  board
-
-
 let new_chromosome () =
   let gene_pool = [0; 1; 2; 3; 4; 5; 6; 7] in
   let chromosome = Array.make 8 0 in
