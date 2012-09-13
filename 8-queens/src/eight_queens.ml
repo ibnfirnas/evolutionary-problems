@@ -1,9 +1,6 @@
 open Printf
+open Batteries
 
-
-(* ------------------------------------------------------------------------- *
- * Types
- * ------------------------------------------------------------------------- *)
 
 type square_state =
   Queen | Empty
@@ -13,44 +10,14 @@ type direction =
   North | NorthEast | East | SouthEast | South | SouthWest | West | NorthWest
 
 
-(* ------------------------------------------------------------------------- *
- * Utils
- * ------------------------------------------------------------------------- *)
-
-let (|>) x f = f x
-
-
-let seq n_from n_to step =
-  let rec seq = function
-    | n, acc' when n = n_to -> n::acc'
-    | n, acc' -> seq ((n + step), n::acc')
-  in
-  seq (n_from, [])
-
-
-let rep a times =
-  let rec rep = function
-    | 0, acc' -> acc'
-    | n, acc' -> rep (n - 1, a::acc')
-  in
-  rep (times, [])
-
-
 let difference (a : 'a array) (b : 'a array) : 'a array =
-  a
-  |> Array.to_list
-  |> List.filter (fun element -> not (List.mem element (Array.to_list b)))
-  |> Array.of_list
+  Array.filter (fun element -> not (Array.mem element b)) a
 
 
 let is_probable = function
   | probability when (Random.float 1.0) <= probability -> true
   | _ -> false
 
-
-(* ------------------------------------------------------------------------- *
- * Core
- * ------------------------------------------------------------------------- *)
 
 let directions_all : direction list  =
   [North; NorthEast; East; SouthEast; South; SouthWest; West; NorthWest]
@@ -97,9 +64,9 @@ let print_board board =
   board
 
 
-let vector_fwd  = seq   7    1  (-1)
-let vector_flat = rep   0    7
-let vector_rev  = seq (-7) (-1)   1
+let vector_fwd  = [ 1;  2;  3;  4;  5;  6;  7]
+let vector_flat = [ 0;  0;  0;  0;  0;  0;  0]
+let vector_rev  = [-1; -2; -3; -4; -5; -6; -7]
 
 
 let offsets_N  = List.combine vector_flat vector_rev
@@ -351,7 +318,9 @@ let main () =
 
   let population_size = 10 in
   let population =
-    Array.of_list (List.map (new_chromosome) (rep () population_size))
+    Enum.repeat ~times:population_size ()
+    |> Enum.map (new_chromosome)
+    |> Array.of_enum
   in
   sort_population population;
 

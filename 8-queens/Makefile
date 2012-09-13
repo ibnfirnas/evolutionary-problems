@@ -4,7 +4,7 @@ OBJ_EXT="cmx"
 
 compile:
 	@mkdir -p bin
-	@$(COMPILER) \
+	@ocamlfind $(COMPILER) -thread -linkpkg -package batteries \
 		-o bin/eight_queens \
 		   src/eight_queens.ml
 
