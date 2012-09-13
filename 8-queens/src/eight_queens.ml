@@ -157,7 +157,7 @@ let print_board_diagnostics board directions =
 
 
 let weight_of_position board x y =
-  let views = List.map (view_in_dir x y) directions_all in
+  let views = List.map (view_in_dir x y) directions_diagonal in
   let weights =
     List.map
     (
