@@ -63,13 +63,13 @@ let print_square (state : square_state) : unit =
 
 let print_board board =
   Array.iter
-  (
+  begin
     fun row ->
       Array.iter
       (print_square)
       row;
       print_newline ()
-  )
+  end
   board
 
 
@@ -105,8 +105,9 @@ let is_onside (x, y) =
 
 
 let view_in_dir x y direction =
-  let offsets = offsets_of_dir direction in
-  List.filter (is_onside) (List.map (fun (xo, yo) -> x + xo, y + yo) offsets)
+  offsets_of_dir direction
+  |> List.map (fun (xo, yo) -> x + xo, y + yo)
+  |> List.filter (is_onside)
 
 
 let print_board_diagnostics board directions =
@@ -181,17 +182,17 @@ let weight_of_position board x y =
 
 let print_board_weighted board =
   Array.iteri
-  (
+  begin
     fun y row ->
       Array.iteri
-      (
+      begin
         fun x state -> match state with
         | Queen -> printf "%d " (weight_of_position board x y)
         | Empty -> print_string "- "
-      )
+      end
       row;
       print_newline ()
-  )
+  end
   board
 
 
