@@ -10,6 +10,15 @@ type direction =
   North | NorthEast | East | SouthEast | South | SouthWest | West | NorthWest
 
 
+(* A permutation of integers 0 through 7. An integer's position represents row
+ * (positin on y axis), integer value represents column (position on x axis).
+ * This representation ensures that a dimension is used only once, thus
+ * preventing a possibility of Queens being placed in direct view, which halves
+ * the search space, leaving only the possibility of diagonals. *)
+let new_chromosome () =
+  Random.shuffle (0 -- 7)
+
+
 let difference (a : 'a array) (b : 'a array) : 'a array =
   Array.filter (fun element -> not (Array.mem element b)) a
 
@@ -203,15 +212,6 @@ let weight_of_board board =
   in
   let weights = Array.map (Array.fold_left (+) 0) board_weighted in
   Array.fold_left (+) 0 weights
-
-
-(* A permutation of integers 0 through 7. An integer's position represents row
- * (positin on y axis), integer value represents column (position on x axis).
- * This representation ensures that a dimension is used only once, thus
- * preventing a possibility of Queens being placed in direct view, which halves
- * the search space, leaving only the possibility of diagonals. *)
-let new_chromosome () =
-  Random.shuffle (0 -- 7)
 
 
 let board_of_chromosome chromosome =
