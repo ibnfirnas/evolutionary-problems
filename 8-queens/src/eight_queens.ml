@@ -205,20 +205,13 @@ let weight_of_board board =
   Array.fold_left (+) 0 weights
 
 
+(* A permutation of integers 0 through 7. An integer's position represents row
+ * (positin on y axis), integer value represents column (position on x axis).
+ * This representation ensures that a dimension is used only once, thus
+ * preventing a possibility of Queens being placed in direct view, which halves
+ * the search space, leaving only the possibility of diagonals. *)
 let new_chromosome () =
-  let gene_pool = [0; 1; 2; 3; 4; 5; 6; 7] in
-  let chromosome = Array.make 8 0 in
-  let rec shuffle = function
-    | [], _ -> ()
-    | gene_pool, position ->
-      let pool_size = List.length gene_pool in
-      let selected_gene = List.nth gene_pool (Random.int pool_size) in
-      let new_gene_pool = List.filter ((!=) selected_gene) gene_pool in
-      chromosome.(position) <- selected_gene;
-      shuffle (new_gene_pool, position + 1)
-  in
-  shuffle (gene_pool, 0);
-  chromosome
+  Random.shuffle (0 -- 7)
 
 
 let board_of_chromosome chromosome =
