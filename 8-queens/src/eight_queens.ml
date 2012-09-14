@@ -294,15 +294,15 @@ let evolve population time_to_stop =
   let num_parent_candidates = 5 in
 
   let rec evolve = function
-    | population, solutions, generation
+    | _, solutions, _
       when (Unix.time ()) >= time_to_stop ->
       solutions
 
-    | population, solutions, generation
+    | _, solutions, generation
       when generation >= max_generations ->
       solutions
 
-    | population, solutions, generation
+    | _, solutions, _
       when Enum.count (Set.enum solutions) >= max_solutions ->
       solutions
 
