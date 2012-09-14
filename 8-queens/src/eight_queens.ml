@@ -339,8 +339,9 @@ let main () =
   in
 
   evolve population
-  |> Set.map (board_of_chromosome)
-  |> Set.iter (print_board)
+  |> Set.enum
+  |> Enum.map (board_of_chromosome)
+  |> Enum.iter (print_board)
 
 
 let () = main ()
