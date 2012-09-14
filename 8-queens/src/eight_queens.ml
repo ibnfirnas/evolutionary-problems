@@ -284,15 +284,20 @@ let sort_population population =
   population
 
 
-let evolve population =
+let evolve population time_to_stop =
   sort_population population;
 
   let population_size = Array.length population in
-  let num_parent_candidates = 5 in
+
   let max_solutions = 92 in
   let max_generations = 1000 in
+  let num_parent_candidates = 5 in
 
   let rec evolve = function
+    | population, solutions, generation
+      when (Unix.time ()) >= time_to_stop ->
+      solutions
+
     | population, solutions, generation
       when generation >= max_generations ->
       solutions
@@ -332,13 +337,18 @@ let main () =
   Random.self_init ();
 
   let population_size = 100 in
+  let max_running_time = 5.0 in
+
+  let time_started = Unix.time () in
+  let time_to_stop = time_started +. max_running_time in
+
   let population =
     Enum.repeat ~times:population_size ()
     |> Enum.map (new_chromosome)
     |> Array.of_enum
   in
 
-  evolve population
+  evolve population time_to_stop
   |> Set.enum
   |> Enum.map (board_of_chromosome)
   |> Enum.iter (print_board)
