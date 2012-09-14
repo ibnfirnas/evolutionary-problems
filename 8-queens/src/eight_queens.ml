@@ -14,7 +14,8 @@ type direction =
  * (positin on y axis), integer value represents column (position on x axis).
  * This representation ensures that a dimension is used only once, thus
  * preventing a possibility of Queens being placed in direct view, which halves
- * the search space, leaving only the possibility of diagonals. *)
+ * the search space, leaving only the possibility of diagonals.
+ *)
 let new_chromosome () =
   Random.shuffle (0 -- 7)
 
@@ -70,7 +71,8 @@ let print_board board =
       row;
       print_newline ()
   end
-  board
+  board;
+  print_newline ()
 
 
 let vector_fwd  = [ 1;  2;  3;  4;  5;  6;  7]
@@ -282,46 +284,63 @@ let sort_population population =
   population
 
 
-let rec evolve = function
-  (* Assuming population comes-in sorted by weight, of course... *)
-  | population when (weight_of_chromosome population.(0)) = 0 -> population.(0)
-  | population ->
-    let population_size = Array.length population in
-    let num_parent_candidates = 5 in
+let evolve population =
+  sort_population population;
 
-    let parent_candidates =
-      Array.make num_parent_candidates ()
-      |> Array.map (fun () -> Random.int population_size)
-      |> Array.map (fun i  -> population.(i))
+  let population_size = Array.length population in
+  let num_parent_candidates = 5 in
+  let max_solutions = 92 in
+  let max_generations = 1000 in
+
+  let rec evolve = function
+    | population, solutions, generation
+      when generation >= max_generations ->
+      solutions
+
+    | population, solutions, generation
+      when Enum.count (Set.enum solutions) >= max_solutions ->
+      solutions
+
+    | population, solutions, generation ->
+      let parent_candidates =
+        Array.make num_parent_candidates ()
+        |> Array.map (fun () -> Random.int population_size)
+        |> Array.map (fun i  -> population.(i))
+      in
+      sort_population parent_candidates;
+      let parents = Array.sub parent_candidates 0 2 in
+      let children = crossover parents in
+
+      (* Mix-in children and drop the fattest members *)
+      let new_population = Array.concat [population; children] in
+      sort_population new_population;
+      let new_population = Array.sub new_population 0 population_size in
+
+      let solutions =
+        new_population
+        |> Array.filter (fun c -> (weight_of_chromosome c) = 0)
+        |> Array.to_list
+        |> Set.of_list
+        |> Set.union solutions
+      in
+      evolve (new_population, solutions, generation + 1)
     in
-    sort_population parent_candidates;
-
-    let parents = Array.sub parent_candidates 0 2 in
-    let children = crossover parents in
-
-    (* Mix-in children and drop the fattest members *)
-    let new_population = Array.concat [population; children] in
-    sort_population new_population;
-    let new_population = Array.sub new_population 0 population_size in
-
-    evolve new_population
+    evolve (population, Set.empty, 0)
 
 
 let main () =
   Random.self_init ();
 
-  let population_size = 10 in
+  let population_size = 100 in
   let population =
     Enum.repeat ~times:population_size ()
     |> Enum.map (new_chromosome)
     |> Array.of_enum
   in
-  sort_population population;
 
-  let first_solution = evolve population in
-  let board = board_of_chromosome first_solution in
-
-  print_board board
+  evolve population
+  |> Set.map (board_of_chromosome)
+  |> Set.iter (print_board)
 
 
 let () = main ()
