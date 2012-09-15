@@ -2,12 +2,55 @@ open Printf
 open Batteries
 
 
+type options =
+  { population_size       : int
+  ; num_parent_candidates : int
+  ; mutation_rate         : float
+  ; max_generations       : int
+  ; max_solutions         : int
+  ; time_to_stop          : float
+  }
+
+
 type square_state =
   Queen | Empty
 
 
 type direction =
   North | NorthEast | East | SouthEast | South | SouthWest | West | NorthWest
+
+
+let get_opts argv =
+  let usage = ""
+
+  and population_size       = ref 100
+  and num_parent_candidates = ref 5
+  and mutation_rate         = ref 0.8
+  and max_generations       = ref 1000
+  and max_solutions         = ref 92
+  and max_running_time      = ref 5.0
+  in
+
+  let speclist =
+    Arg.align
+    [ ("--population-size",       Arg.Set_int population_size,       "")
+    ; ("--num-parent-candidates", Arg.Set_int num_parent_candidates, "")
+    ; ("--mutation-rate",         Arg.Set_float mutation_rate,       "")
+    ; ("--max-generations",       Arg.Set_int max_generations,       "")
+    ; ("--max-solutions",         Arg.Set_int max_solutions,         "")
+    ; ("--max-running-time",      Arg.Set_float max_running_time,    "")
+    ]
+  in
+
+  Arg.parse speclist (fun _ -> ()) usage;
+
+  { population_size       = !population_size
+  ; num_parent_candidates = !num_parent_candidates
+  ; mutation_rate         = !mutation_rate
+  ; max_generations       = !max_generations
+  ; max_solutions         = !max_solutions
+  ; time_to_stop          = ((Unix.time ()) +. !max_running_time)
+  }
 
 
 (* A permutation of integers 0 through 7. An integer's position represents row
@@ -253,14 +296,13 @@ let mutated chromosome =
   chromosome
 
 
-let maybe_mutate_chromosomes chromosomes =
-  let mutation_rate = 0.8 in
+let maybe_mutate_chromosomes mutation_rate chromosomes =
   Array.map
   (fun c -> if is_probable mutation_rate then mutated c else c)
   chromosomes
 
 
-let crossover = function
+let crossover mutation_rate parents = match parents with
   | [| parent_a; parent_b |] ->
     let cross_point = Random.int 8 in
 
@@ -273,7 +315,7 @@ let crossover = function
     let child_a = Array.concat [head_a; tail_a] in
     let child_b = Array.concat [head_b; tail_b] in
 
-    maybe_mutate_chromosomes [|child_a; child_b|]
+    maybe_mutate_chromosomes mutation_rate [|child_a; child_b|]
 
   | _ -> assert false
 
@@ -284,42 +326,36 @@ let sort_population population =
   population
 
 
-let evolve population time_to_stop =
+let evolve population opts =
   sort_population population;
-
-  let population_size = Array.length population in
-
-  let max_solutions = 92 in
-  let max_generations = 1000 in
-  let num_parent_candidates = 5 in
 
   let rec evolve = function
     | _, solutions, _
-      when (Unix.time ()) >= time_to_stop ->
+      when (Unix.time ()) >= opts.time_to_stop ->
       solutions
 
     | _, solutions, generation
-      when generation >= max_generations ->
+      when generation >= opts.max_generations ->
       solutions
 
     | _, solutions, _
-      when Enum.count (Set.enum solutions) >= max_solutions ->
+      when Enum.count (Set.enum solutions) >= opts.max_solutions ->
       solutions
 
     | population, solutions, generation ->
       let parent_candidates =
-        Array.make num_parent_candidates ()
-        |> Array.map (fun () -> Random.int population_size)
+        Array.make opts.num_parent_candidates ()
+        |> Array.map (fun () -> Random.int opts.population_size)
         |> Array.map (fun i  -> population.(i))
       in
       sort_population parent_candidates;
       let parents = Array.sub parent_candidates 0 2 in
-      let children = crossover parents in
+      let children = crossover opts.mutation_rate parents in
 
       (* Mix-in children and drop the fattest members *)
       let new_population = Array.concat [population; children] in
       sort_population new_population;
-      let new_population = Array.sub new_population 0 population_size in
+      let new_population = Array.sub new_population 0 opts.population_size in
 
       let solutions =
         new_population
@@ -333,25 +369,21 @@ let evolve population time_to_stop =
     evolve (population, Set.empty, 0)
 
 
-let main () =
+let main argv =
   Random.self_init ();
 
-  let population_size = 100 in
-  let max_running_time = 5.0 in
-
-  let time_started = Unix.time () in
-  let time_to_stop = time_started +. max_running_time in
+  let options = get_opts argv in
 
   let population =
-    Enum.repeat ~times:population_size ()
+    Enum.repeat ~times:options.population_size ()
     |> Enum.map (new_chromosome)
     |> Array.of_enum
   in
 
-  evolve population time_to_stop
+  evolve population options
   |> Set.enum
   |> Enum.map (board_of_chromosome)
   |> Enum.iter (print_board)
 
 
-let () = main ()
+let () = main Sys.argv
