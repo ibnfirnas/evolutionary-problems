@@ -323,7 +323,7 @@ let evolve population time_to_stop =
 
       let solutions =
         new_population
-        |> Array.filter (fun c -> (weight_of_chromosome c) = 0)
+        |> Array.filter (weight_of_chromosome |- (=) 0)
         |> Array.to_list
         |> Set.of_list
         |> Set.union solutions
