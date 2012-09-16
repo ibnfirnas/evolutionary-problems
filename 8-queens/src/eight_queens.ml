@@ -20,6 +20,14 @@ type direction =
   North | NorthEast | East | SouthEast | South | SouthWest | West | NorthWest
 
 
+type chromosome =
+  int array
+
+
+type population =
+  int * chromosome array
+
+
 let get_opts argv =
   let usage = ""
 
@@ -284,6 +292,10 @@ let print_chromosomes chromosomes label =
   print_newline ()
 
 
+let popmember_of_chromosome c =
+  (weight_of_chromosome c), c
+
+
 let mutated chromosome =
   let chromosome = Array.copy chromosome in
   let length = Array.length chromosome in
@@ -296,14 +308,12 @@ let mutated chromosome =
   chromosome
 
 
-let maybe_mutate_chromosomes mutation_rate chromosomes =
-  Array.map
-  (fun c -> if is_probable mutation_rate then mutated c else c)
-  chromosomes
+let maybe_mutate mutation_rate chromosome =
+  if is_probable mutation_rate then mutated chromosome else chromosome
 
 
 let crossover mutation_rate parents = match parents with
-  | [| parent_a; parent_b |] ->
+  | [| _, parent_a; _, parent_b |] ->
     let cross_point = Random.int 8 in
 
     let head_a = Array.sub parent_a 0 cross_point in
@@ -312,17 +322,17 @@ let crossover mutation_rate parents = match parents with
     let tail_a = difference parent_b head_a in
     let tail_b = difference parent_a head_b in
 
-    let child_a = Array.concat [head_a; tail_a] in
-    let child_b = Array.concat [head_b; tail_b] in
-
-    maybe_mutate_chromosomes mutation_rate [|child_a; child_b|]
+    [| [head_a; tail_a]; [head_b; tail_b] |]
+    |> Array.map (Array.concat)
+    |> Array.map (maybe_mutate mutation_rate)
+    |> Array.map (popmember_of_chromosome)
 
   | _ -> assert false
 
 
 let sort_population population =
   Array.sort
-  (fun a b -> compare (weight_of_chromosome a) (weight_of_chromosome b))
+  (fun (weight_a, _) (weight_b, _) -> compare weight_a weight_b)
   population
 
 
@@ -359,7 +369,8 @@ let evolve population opts =
 
       let solutions =
         new_population
-        |> Array.filter (weight_of_chromosome |- (=) 0)
+        |> Array.filter (fst |- (=) 0)
+        |> Array.map (snd)
         |> Array.to_list
         |> Set.of_list
         |> Set.union solutions
@@ -378,6 +389,7 @@ let main argv =
     Enum.repeat ~times:options.population_size ()
     |> Enum.map (new_chromosome)
     |> Array.of_enum
+    |> Array.map (popmember_of_chromosome)
   in
 
   evolve population options
