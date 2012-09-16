@@ -8,6 +8,7 @@ type options =
   ; mutation_rate         : float
   ; max_generations       : int
   ; max_solutions         : int
+  ; max_running_time      : float
   ; time_to_stop          : float
   }
 
@@ -26,6 +27,37 @@ type chromosome =
 
 type population =
   int * chromosome array
+
+
+let filename_stats = "evo-stats.csv"
+let filename_facts = "evo-facts.csv"
+
+
+let log_facts options =
+  let oc = open_out filename_facts in
+  let header_line =
+    String.join "|"
+    [ "PopulationSize"
+    ; "NumParentCandidates"
+    ; "MutationRate"
+    ; "MaxGenerations"
+    ; "MaxSolutions"
+    ; "MaxRunningTime"
+    ]
+  in
+  let data_line =
+    sprintf
+    "%d|%d|%f|%d|%d|%f"
+    options.population_size
+    options.num_parent_candidates
+    options.mutation_rate
+    options.max_generations
+    options.max_solutions
+    options.max_running_time
+  in
+  output_string oc (header_line ^ "\n");
+  output_string oc (data_line ^ "\n");
+  close_out oc
 
 
 let get_opts argv =
@@ -52,13 +84,20 @@ let get_opts argv =
 
   Arg.parse speclist (fun _ -> ()) usage;
 
-  { population_size       = !population_size
-  ; num_parent_candidates = !num_parent_candidates
-  ; mutation_rate         = !mutation_rate
-  ; max_generations       = !max_generations
-  ; max_solutions         = !max_solutions
-  ; time_to_stop          = ((Unix.time ()) +. !max_running_time)
-  }
+  let options =
+    { population_size       = !population_size
+    ; num_parent_candidates = !num_parent_candidates
+    ; mutation_rate         = !mutation_rate
+    ; max_generations       = !max_generations
+    ; max_solutions         = !max_solutions
+    ; max_running_time      = !max_running_time
+    ; time_to_stop          = ((Unix.time ()) +. !max_running_time)
+    }
+  in
+
+  log_facts options;
+
+  options
 
 
 (* A permutation of integers 0 through 7. An integer's position represents row
@@ -336,23 +375,71 @@ let sort_population population =
   population
 
 
+let weight_stats population =
+  let weights = Array.map (fst) population in
+
+  let length = Array.length weights in
+  let total  = Array.fold_left (+) 0 weights in
+
+  let hi  = Array.max weights in
+  let lo  = Array.min weights in
+  let avg = (float_of_int total) /. (float_of_int length) in
+
+  (hi, lo, avg)
+
+
+let stats_log_init () =
+  let oc = open_out filename_stats in
+  let header_line =
+    String.join "|"
+    [ "TimeStamp"
+    ; "Generation"
+    ; "WeightHighest"
+    ; "WeightLowest"
+    ; "WeightAverage"
+    ; "UniqueSolutions"
+    ]
+  in
+  output_string oc (header_line ^ "\n");
+  oc
+
+
+let stats_log_record oc generation population solutions =
+  let time_stamp = Unix.time () in
+  let hi, lo, avg = weight_stats population in
+  let unique_solutions = solutions |> Set.enum |> Enum.count in
+  let record =
+    sprintf
+    "%f|%d|%d|%d|%f|%d\n"
+    time_stamp generation hi lo avg unique_solutions
+  in
+  output_string oc record
+
+
 let evolve population opts =
   sort_population population;
+
+  let oc = stats_log_init () in
 
   let rec evolve = function
     | _, solutions, _
       when (Unix.time ()) >= opts.time_to_stop ->
+      close_out oc;
       solutions
 
     | _, solutions, generation
       when generation >= opts.max_generations ->
+      close_out oc;
       solutions
 
     | _, solutions, _
       when Enum.count (Set.enum solutions) >= opts.max_solutions ->
+      close_out oc;
       solutions
 
     | population, solutions, generation ->
+      stats_log_record oc generation population solutions;
+
       let parent_candidates =
         Array.make opts.num_parent_candidates ()
         |> Array.map (fun () -> Random.int opts.population_size)
