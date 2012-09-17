@@ -29,6 +29,9 @@ type population =
   int * chromosome array
 
 
+let weights = Hashtbl.create 100
+
+
 let time_stamp =
   let open Unix in
   let tm = time () |> localtime in
@@ -348,7 +351,15 @@ let board_of_chromosome chromosome =
 
 
 let weight_of_chromosome chromosome =
-  weight_of_board (board_of_chromosome chromosome)
+  let weight =
+    try
+      Hashtbl.find weights chromosome
+    with Not_found ->
+      let weight = weight_of_board (board_of_chromosome chromosome) in
+      Hashtbl.add weights chromosome weight;
+      weight
+  in
+  weight
 
 
 let print_chromosomes chromosomes label =
