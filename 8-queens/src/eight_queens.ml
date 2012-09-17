@@ -29,12 +29,46 @@ type population =
   int * chromosome array
 
 
-let filename_stats = "evo-stats.csv"
-let filename_facts = "evo-facts.csv"
+let time_stamp =
+  let open Unix in
+  let tm = time () |> localtime in
+  sprintf
+  "%04d-%02d-%02d--%02d-%02d-%02d"
+  (tm.tm_year + 1900) tm.tm_mon tm.tm_mday tm.tm_hour tm.tm_min tm.tm_sec
+
+
+let path_of components =
+  String.concat Filename.dir_sep components
+
+
+let filename_stats = "stats.csv"
+let filename_facts = "facts.csv"
+
+let path_dir__data = "data"
+
+let path_file__stats = path_of [path_dir__data; time_stamp; filename_stats]
+let path_file__facts = path_of [path_dir__data; time_stamp; filename_facts]
+
+
+let ensure_path path =
+  let dirs = Str.split (Str.regexp Filename.dir_sep) (Filename.dirname path) in
+  let perms = 0o700 in
+  let rec make_dirs = function
+    | [], _ -> ()
+    | dir::dirs, path ->
+      let path = path @ [dir] in
+      begin
+        try Unix.mkdir (path_of path) perms
+        with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
+      end;
+      make_dirs (dirs, path)
+  in
+  make_dirs (dirs, [])
 
 
 let log_facts options =
-  let oc = open_out filename_facts in
+  ensure_path path_file__facts;
+  let oc = open_out path_file__facts in
   let header_line =
     String.join "|"
     [ "PopulationSize"
@@ -389,7 +423,8 @@ let weight_stats population =
 
 
 let stats_log_init () =
-  let oc = open_out filename_stats in
+  ensure_path path_file__stats;
+  let oc = open_out path_file__stats in
   let header_line =
     String.join "|"
     [ "TimeStamp"
