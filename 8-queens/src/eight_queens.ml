@@ -2,6 +2,15 @@ open Printf
 open Batteries
 
 
+module Array =
+struct
+  include Array
+
+  let difference (a : 'a array) (b : 'a array) : 'a array =
+    Array.filter (fun element -> not (Array.mem element b)) a
+end
+
+
 type options =
   { population_size       : int
   ; num_parent_candidates : int
@@ -145,10 +154,6 @@ let get_opts argv =
  *)
 let new_chromosome () =
   Random.shuffle (0 -- 7)
-
-
-let difference (a : 'a array) (b : 'a array) : 'a array =
-  Array.filter (fun element -> not (Array.mem element b)) a
 
 
 let is_probable = function
@@ -403,8 +408,8 @@ let crossover mutation_rate parents = match parents with
     let head_a = Array.sub parent_a 0 cross_point in
     let head_b = Array.sub parent_b 0 cross_point in
 
-    let tail_a = difference parent_b head_a in
-    let tail_b = difference parent_a head_b in
+    let tail_a = Array.difference parent_b head_a in
+    let tail_b = Array.difference parent_a head_b in
 
     [| [head_a; tail_a]; [head_b; tail_b] |]
     |> Array.map (Array.concat)
