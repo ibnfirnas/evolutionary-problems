@@ -7,7 +7,44 @@ struct
   include Array
 
   let difference (a : 'a array) (b : 'a array) : 'a array =
-    Array.filter (fun element -> not (Array.mem element b)) a
+    Array.filter (fun e -> not (Array.mem e b)) a
+end
+
+
+module Utils =
+struct
+  let timestamp () =
+    let open Unix in
+    let tm = time () |> localtime in
+
+    sprintf
+    "%04d-%02d-%02d--%02d-%02d-%02d"
+    (tm.tm_year + 1900)
+    (tm.tm_mon  + 1)
+     tm.tm_mday
+     tm.tm_hour
+     tm.tm_min
+     tm.tm_sec
+
+
+  let path_of components =
+    String.concat Filename.dir_sep components
+
+
+  let ensure_path path =
+    let dirs = Str.split (Str.regexp Filename.dir_sep) (Filename.dirname path) in
+    let perms = 0o700 in
+    let rec make_dirs = function
+      | [], _ -> ()
+      | dir::dirs, path ->
+        let path = path @ [dir] in
+        begin
+          try Unix.mkdir (path_of path) perms
+          with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
+        end;
+        make_dirs (dirs, path)
+    in
+    make_dirs (dirs, [])
 end
 
 
@@ -38,51 +75,24 @@ type population =
   int * chromosome array
 
 
+let timestamp = Utils.timestamp ()
+
+
 let weights = Hashtbl.create 100
 
 
-let time_stamp =
-  let open Unix in
-  let tm = time () |> localtime in
-  sprintf
-  "%04d-%02d-%02d--%02d-%02d-%02d"
-  (tm.tm_year + 1900) (tm.tm_mon + 1) tm.tm_mday tm.tm_hour tm.tm_min tm.tm_sec
+let csv_delim = "|"
 
 
-let path_of components =
-  String.concat Filename.dir_sep components
+let path_file__stats = Utils.path_of ["data"; timestamp; "stats.csv"]
+let path_file__facts = Utils.path_of ["data"; timestamp; "facts.csv"]
 
 
-let filename_stats = "stats.csv"
-let filename_facts = "facts.csv"
-
-let path_dir__data = "data"
-
-let path_file__stats = path_of [path_dir__data; time_stamp; filename_stats]
-let path_file__facts = path_of [path_dir__data; time_stamp; filename_facts]
-
-
-let ensure_path path =
-  let dirs = Str.split (Str.regexp Filename.dir_sep) (Filename.dirname path) in
-  let perms = 0o700 in
-  let rec make_dirs = function
-    | [], _ -> ()
-    | dir::dirs, path ->
-      let path = path @ [dir] in
-      begin
-        try Unix.mkdir (path_of path) perms
-        with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
-      end;
-      make_dirs (dirs, path)
-  in
-  make_dirs (dirs, [])
-
-
-let log_facts options =
-  ensure_path path_file__facts;
+let log_facts (o : options) : unit =
+  Utils.ensure_path path_file__facts;
   let oc = open_out path_file__facts in
   let header_line =
-    String.join "|"
+    String.join csv_delim
     [ "PopulationSize"
     ; "NumParentCandidates"
     ; "MutationRate"
@@ -92,14 +102,14 @@ let log_facts options =
     ]
   in
   let data_line =
-    sprintf
-    "%d|%d|%f|%d|%d|%f"
-    options.population_size
-    options.num_parent_candidates
-    options.mutation_rate
-    options.max_generations
-    options.max_solutions
-    options.max_running_time
+    String.join csv_delim
+    [ dump o.population_size
+    ; dump o.num_parent_candidates
+    ; dump o.mutation_rate
+    ; dump o.max_generations
+    ; dump o.max_solutions
+    ; dump o.max_running_time
+    ]
   in
   output_string oc (header_line ^ "\n");
   output_string oc (data_line ^ "\n");
@@ -140,9 +150,7 @@ let get_opts argv =
     ; time_to_stop          = ((Unix.time ()) +. !max_running_time)
     }
   in
-
   log_facts options;
-
   options
 
 
@@ -198,9 +206,7 @@ let print_board board =
   Array.iter
   begin
     fun row ->
-      Array.iter
-      (print_square)
-      row;
+      Array.iter print_square row;
       print_newline ()
   end
   board;
@@ -439,10 +445,10 @@ let weight_stats population =
 
 
 let stats_log_init () =
-  ensure_path path_file__stats;
+  Utils.ensure_path path_file__stats;
   let oc = open_out path_file__stats in
   let header_line =
-    String.join "|"
+    String.join csv_delim
     [ "TimeStamp"
     ; "Generation"
     ; "WeightHighest"
@@ -456,15 +462,20 @@ let stats_log_init () =
 
 
 let stats_log_record oc generation population solutions =
-  let time_stamp = Unix.time () in
+  let timestamp = Unix.time () in
   let hi, lo, avg = weight_stats population in
   let unique_solutions = solutions |> Set.enum |> Enum.count in
-  let record =
-    sprintf
-    "%f|%d|%d|%d|%f|%d\n"
-    time_stamp generation hi lo avg unique_solutions
+  let data_line =
+    String.join csv_delim
+    [ dump timestamp
+    ; dump generation
+    ; dump hi
+    ; dump lo
+    ; dump avg
+    ; dump unique_solutions
+    ]
   in
-  output_string oc record
+  output_string oc (data_line ^ "\n")
 
 
 let evolve population opts =
