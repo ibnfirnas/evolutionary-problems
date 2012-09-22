@@ -551,9 +551,7 @@ let main argv =
     |> Array.of_enum
   in
 
-  evolve population options
-  |> Set.enum
-  |> Enum.iter (board_of_chromosome |- print_board)
+  evolve population options |> Set.iter (board_of_chromosome |- print_board)
 
 
 let () = main Sys.argv
