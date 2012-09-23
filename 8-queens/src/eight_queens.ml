@@ -2,12 +2,16 @@ open Printf
 open Batteries
 
 
-module Array =
+module S = Set
+module L = List
+module H = Hashtbl
+module E = Enum
+module A =
 struct
   include Array
 
   let difference (a : 'a array) (b : 'a array) : 'a array =
-    Array.filter (fun e -> not (Array.mem e b)) a
+    filter (fun e -> not (mem e b)) a
 end
 
 
@@ -79,7 +83,7 @@ type population =
 
 
 type solutions =
-  chromosome Set.t
+  chromosome S.t
 
 
 type options =
@@ -98,7 +102,7 @@ type options =
 let timestamp = Utils.timestamp ()
 
 
-let weights = Hashtbl.create 100
+let weights = H.create 100
 
 
 let csv_delim = "|"
@@ -223,7 +227,7 @@ let print_square (state : square_state) : unit =
 
 
 let print_board (b : board) =
-  Array.iter (fun row -> Array.iter print_square row; print_newline ()) b;
+  A.iter (fun row -> A.iter print_square row; print_newline ()) b;
   print_newline ()
 
 
@@ -232,14 +236,14 @@ let vector_flat = [ 0;  0;  0;  0;  0;  0;  0]
 let vector_rev  = [-1; -2; -3; -4; -5; -6; -7]
 
 
-let offsets_N  = List.combine vector_flat vector_rev
-let offsets_NE = List.combine vector_fwd  vector_rev
-let offsets_E  = List.combine vector_fwd  vector_flat
-let offsets_SE = List.combine vector_fwd  vector_fwd
-let offsets_S  = List.combine vector_flat vector_fwd
-let offsets_SW = List.combine vector_rev  vector_fwd
-let offsets_W  = List.combine vector_rev  vector_flat
-let offsets_NW = List.combine vector_rev  vector_rev
+let offsets_N  = L.combine vector_flat vector_rev
+let offsets_NE = L.combine vector_fwd  vector_rev
+let offsets_E  = L.combine vector_fwd  vector_flat
+let offsets_SE = L.combine vector_fwd  vector_fwd
+let offsets_S  = L.combine vector_flat vector_fwd
+let offsets_SW = L.combine vector_rev  vector_fwd
+let offsets_W  = L.combine vector_rev  vector_flat
+let offsets_NW = L.combine vector_rev  vector_rev
 
 
 let offsets_of_dir = function
@@ -260,50 +264,50 @@ let is_onside (x, y) =
 
 let view_in_dir x y (d : direction) =
   offsets_of_dir d
-  |> List.map (fun (xo, yo) -> x + xo, y + yo)
-  |> List.filter (is_onside)
+  |> L.map (fun (xo, yo) -> x + xo, y + yo)
+  |> L.filter (is_onside)
 
 
 let print_board_diagnostics (board : board) (directions : direction list) =
-  Array.iteri
+  A.iteri
   (
     fun yi row ->
-      Array.iteri
+      A.iteri
       (
         fun xi square -> match square with
         | Queen ->
           printf "(X: %d, Y: %d, STATE: %c)\n" xi yi (char_of_state square);
-          List.iter
+          L.iter
           (
             fun dir ->
               let offsets = offsets_of_dir dir in
               let view = view_in_dir xi yi dir in
               let view_weights =
-                List.map (fun (x, y) -> weight_of_state board.(y).(x)) view
+                L.map (fun (x, y) -> weight_of_state board.(y).(x)) view
               in
 
               printf "%s-O : " (str_of_dir dir);
-              List.iter (fun (x, y) -> printf "%d,%d " x y) offsets;
+              L.iter (fun (x, y) -> printf "%d,%d " x y) offsets;
               print_newline ();
 
               printf "%s-C : " (str_of_dir dir);
-              List.iter (fun (x, y) -> printf "%d,%d " x y) view;
+              L.iter (fun (x, y) -> printf "%d,%d " x y) view;
               print_newline ();
 
               printf "%s-S : " (str_of_dir dir);
-              List.iter
+              L.iter
               (fun (x, y) -> printf " %c  " (char_of_state board.(y).(x)))
               view;
               print_newline ();
 
               printf "%s-W : " (str_of_dir dir);
-              List.iter
+              L.iter
               (fun (x, y) -> printf " %d  " (weight_of_state board.(y).(x)))
               view;
               print_newline ();
 
               printf "%s-WT: " (str_of_dir dir);
-              let view_weight = List.fold_left (+) 0 view_weights in
+              let view_weight = L.fold_left (+) 0 view_weights in
               printf " %d" view_weight;
               print_newline ();
           )
@@ -321,24 +325,24 @@ let print_board_diagnostics (board : board) (directions : direction list) =
 
 
 let weight_of_position (b : board) x y =
-  let views = List.map (view_in_dir x y) directions_diagonal in
+  let views = L.map (view_in_dir x y) directions_diagonal in
   let weights =
-    List.map
+    L.map
     (
-      List.fold_left
+      L.fold_left
       (fun acc (xv, yv) -> (weight_of_state b.(yv).(xv)) + acc)
       0
     )
     views
   in
-  List.fold_left (+) 0 weights
+  L.fold_left (+) 0 weights
 
 
 let print_board_weighted (b : board) =
-  Array.iteri
+  A.iteri
   begin
     fun y row ->
-      Array.iteri
+      A.iteri
       begin
         fun x state -> match state with
         | Queen -> printf "%d " (weight_of_position b x y)
@@ -352,10 +356,10 @@ let print_board_weighted (b : board) =
 
 let weight_of_board (b : board) =
   let board_weighted =
-    Array.mapi
+    A.mapi
     (
       fun y row ->
-        Array.mapi
+        A.mapi
         (
           fun x state -> match state with
           | Queen -> weight_of_position b x y
@@ -365,21 +369,21 @@ let weight_of_board (b : board) =
     )
     b
   in
-  let weights = Array.map (Array.fold_left (+) 0) board_weighted in
-  Array.fold_left (+) 0 weights
+  let weights = A.map (A.fold_left (+) 0) board_weighted in
+  A.fold_left (+) 0 weights
 
 
 let board_of_chromosome (c : chromosome) =
-  Array.map (fun x -> let row = Array.make 8 Empty in row.(x) <- Queen; row) c
+  A.map (fun x -> let row = A.make 8 Empty in row.(x) <- Queen; row) c
 
 
 let weight_of_chromosome (c : chromosome) =
   let weight =
     try
-      Hashtbl.find weights c
+      H.find weights c
     with Not_found ->
       let weight = weight_of_board (board_of_chromosome c) in
-      Hashtbl.add weights c weight;
+      H.add weights c weight;
       weight
   in
   weight
@@ -387,11 +391,11 @@ let weight_of_chromosome (c : chromosome) =
 
 let print_chromosomes (chromosomes : chromosome list) label =
   print_endline label;
-  List.iteri
+  L.iteri
   begin
     fun i c ->
       printf "%d, " i;
-      Array.iter (print_int) c;
+      A.iter (print_int) c;
       printf ", %d" (weight_of_chromosome c);
       print_newline ()
   end
@@ -404,8 +408,8 @@ let individual_of_chromosome (c : chromosome) =
 
 
 let mutated (c : chromosome) =
-  let c = Array.copy c in
-  let length = Array.length c in
+  let c = A.copy c in
+  let length = A.length c in
   let point_a = Random.int length in
   let point_b = Random.int length in
   let val_of_a = c.(point_a) in
@@ -424,32 +428,32 @@ let crossover (mutation_rate : float) (parents : individual array) =
   | [| _, parent_a; _, parent_b |] ->
     let cross_point = Random.int 8 in
 
-    let head_a = Array.sub parent_a 0 cross_point in
-    let head_b = Array.sub parent_b 0 cross_point in
+    let head_a = A.sub parent_a 0 cross_point in
+    let head_b = A.sub parent_b 0 cross_point in
 
-    let tail_a = Array.difference parent_b head_a in
-    let tail_b = Array.difference parent_a head_b in
+    let tail_a = A.difference parent_b head_a in
+    let tail_b = A.difference parent_a head_b in
 
     [| [head_a; tail_a]; [head_b; tail_b] |]
-    |> Array.map (Array.concat)
-    |> Array.map (maybe_mutate mutation_rate)
-    |> Array.map (individual_of_chromosome)
+    |> A.map (A.concat)
+    |> A.map (maybe_mutate mutation_rate)
+    |> A.map (individual_of_chromosome)
 
   | _ -> assert false
 
 
 let sort_population (p : population) =
-  Array.sort (fun ((a : weight), _) ((b : weight), _) -> compare a b) p
+  A.sort (fun ((a : weight), _) ((b : weight), _) -> compare a b) p
 
 
 let weight_stats (p : population) =
-  let weights = Array.map (fst) p in
+  let weights = A.map (fst) p in
 
-  let length = Array.length weights in
-  let total  = Array.fold_left (+) 0 weights in
+  let length = A.length weights in
+  let total  = A.fold_left (+) 0 weights in
 
-  let hi  = Array.max weights in
-  let lo  = Array.min weights in
+  let hi  = A.max weights in
+  let lo  = A.min weights in
   let avg = (float_of_int total) /. (float_of_int length) in
 
   (hi, lo, avg)
@@ -475,7 +479,7 @@ let stats_log_init () =
 let stats_log_record oc generation (p : population) (s : solutions) =
   let timestamp = Unix.time () in
   let hi, lo, avg = weight_stats p in
-  let unique_solutions = s |> Set.enum |> Enum.count in
+  let unique_solutions = s |> S.enum |> E.count in
   let data_line =
     String.join csv_delim
     [ string_of_float timestamp
@@ -506,7 +510,7 @@ let evolve (p : population) (o : options) =
       solutions
 
     | _, solutions, _
-      when Enum.count (Set.enum solutions) >= o.max_solutions ->
+      when E.count (S.enum solutions) >= o.max_solutions ->
       close_out oc;
       solutions
 
@@ -514,30 +518,30 @@ let evolve (p : population) (o : options) =
       stats_log_record oc generation p solutions;
 
       let parent_candidates =
-        Array.make o.num_parent_candidates ()
-        |> Array.map (fun () -> Random.int o.population_size)
-        |> Array.map (fun i  -> p.(i))
+        A.make o.num_parent_candidates ()
+        |> A.map (fun () -> Random.int o.population_size)
+        |> A.map (fun i  -> p.(i))
       in
       sort_population parent_candidates;
-      let parents = Array.sub parent_candidates 0 2 in
+      let parents = A.sub parent_candidates 0 2 in
       let children = crossover o.mutation_rate parents in
 
       (* Mix-in children and drop the fattest members *)
-      let new_population = Array.concat [p; children] in
+      let new_population = A.concat [p; children] in
       sort_population new_population;
-      let new_population = Array.sub new_population 0 o.population_size in
+      let new_population = A.sub new_population 0 o.population_size in
 
       let new_solutions =
         new_population
-        |> Array.filter (fst |- (=) 0)
-        |> Array.map (snd)
-        |> Array.to_list
-        |> Set.of_list
-        |> Set.union solutions
+        |> A.filter (fst |- (=) 0)
+        |> A.map (snd)
+        |> A.to_list
+        |> S.of_list
+        |> S.union solutions
       in
       evolve (new_population, new_solutions, generation + 1)
     in
-    evolve (p, Set.empty, 0)
+    evolve (p, S.empty, 0)
 
 
 let main argv =
@@ -546,12 +550,12 @@ let main argv =
   let options = get_opts argv in
 
   let population =
-    Enum.repeat ~times:options.population_size ()
-    |> Enum.map (new_chromosome |- individual_of_chromosome)
-    |> Array.of_enum
+    E.repeat ~times:options.population_size ()
+    |> E.map (new_chromosome |- individual_of_chromosome)
+    |> A.of_enum
   in
 
-  evolve population options |> Set.iter (board_of_chromosome |- print_board)
+  evolve population options |> S.iter (board_of_chromosome |- print_board)
 
 
 let () = main Sys.argv
