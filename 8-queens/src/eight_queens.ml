@@ -6,21 +6,18 @@ module S = Set
 module L = List
 module H = Hashtbl
 module E = Enum
-module A =
-struct
+module A = struct
   include Array
 
-  let difference (a : 'a array) (b : 'a array) : 'a array =
+  let diff (a : 'a array) (b : 'a array) : 'a array =
     filter (fun e -> not (mem e b)) a
 end
 
 
-module Utils =
-struct
+module Utils = struct
   let timestamp () =
     let open Unix in
     let tm = time () |> localtime in
-
     sprintf
     "%04d-%02d-%02d--%02d-%02d-%02d"
     (tm.tm_year + 1900)
@@ -36,19 +33,21 @@ struct
 
 
   let ensure_path path =
-    let dirs = Str.split (Str.regexp Filename.dir_sep) (Filename.dirname path) in
     let perms = 0o700 in
     let rec make_dirs = function
       | [], _ -> ()
-      | dir::dirs, path ->
-        let path = path @ [dir] in
+      | dir::dir_queue, dir_acc ->
+        let dir_acc = dir_acc @ [dir] in
         begin
-          try Unix.mkdir (path_of path) perms
+          try Unix.mkdir (path_of dir_acc) perms
           with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
         end;
-        make_dirs (dirs, path)
+        make_dirs (dir_queue, dir_acc)
     in
-    make_dirs (dirs, [])
+    let dir_queue =
+      Filename.dirname path |> Str.split (Str.regexp Filename.dir_sep)
+    in
+    make_dirs (dir_queue, [])
 end
 
 
@@ -431,8 +430,8 @@ let crossover (mutation_rate : float) (parents : individual array) =
     let head_a = A.sub parent_a 0 cross_point in
     let head_b = A.sub parent_b 0 cross_point in
 
-    let tail_a = A.difference parent_b head_a in
-    let tail_b = A.difference parent_a head_b in
+    let tail_a = A.diff parent_b head_a in
+    let tail_b = A.diff parent_a head_b in
 
     [| [head_a; tail_a]; [head_b; tail_b] |]
     |> A.map (A.concat)
@@ -494,8 +493,6 @@ let stats_log_record oc generation (p : population) (s : solutions) =
 
 
 let evolve (p : population) (o : options) =
-  sort_population p;
-
   let oc = stats_log_init () in
 
   let rec evolve = function
@@ -541,6 +538,7 @@ let evolve (p : population) (o : options) =
       in
       evolve (new_population, new_solutions, generation + 1)
     in
+    sort_population p;
     evolve (p, S.empty, 0)
 
 
